@@ -1,0 +1,15 @@
+{
+	"mcpServers": {
+		"playwright": {
+			"command": "npx",
+			"args": [
+				"-y",
+				"@playwright/mcp@latest"
+			]
+		},
+		"tablycja": {
+			"type": "http",
+			"url": "https://tablycja-mcp-523891264975.europe-west1.run.app/mcp"
+		}
+	}
+}

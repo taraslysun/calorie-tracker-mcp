@@ -1,0 +1,21 @@
+# Local build + run. Mirrors what Cloud Run does (single container,
+# secrets via env). Use `docker compose up --build` to bring it up.
+services:
+  mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tablycja-mcp:local
+    ports:
+      - "3000:8080"
+    environment:
+      AS_ISSUER: ${AS_ISSUER:-http://localhost:3000}
+      MCP_RESOURCE: ${MCP_RESOURCE:-http://localhost:3000/mcp}
+      AS_JWT_SECRET: ${AS_JWT_SECRET:?set AS_JWT_SECRET}
+      AS_FERNET_KEY: ${AS_FERNET_KEY:?set AS_FERNET_KEY (generate via Fernet.generate_key())}
+      AS_BIND_MODE: ${AS_BIND_MODE:-cookie}
+      MCP_AUTH_MODE: ${MCP_AUTH_MODE:-oauth}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      PORT: "8080"
+    restart: unless-stopped
