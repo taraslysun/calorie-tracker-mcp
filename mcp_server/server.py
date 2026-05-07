@@ -1,13 +1,20 @@
 """FastMCP server exposing tablycjakalorijnosti as MCP tools.
 
-Phase 3 (dev): no auth on the MCP transport. Single user via TABLYCJA_COOKIES env.
-Phase 4 will wrap in OAuth 2.1 (resource server) per MCP spec.
+Two auth modes, selected by `MCP_AUTH_MODE` (auto-detected if unset):
 
-Run streamable-http:
-    TABLYCJA_COOKIES='{"PHPSESSID":"..."}' uv run python -m mcp_server
+* `dev`   — no transport auth; single user via env `TABLYCJA_COOKIES`.
+            Auto-selected when `TABLYCJA_COOKIES` is set and `MCP_AUTH_MODE`
+            is unset. Useful for local development against a real cookie jar.
+* `oauth` — Bearer JWT required on every request. The token (issued by
+            `auth_server`) carries the Fernet-encrypted upstream cookie jar
+            and optional email/password; `BearerAuthMiddleware` decrypts and
+            stashes them on ContextVars per request.
+
+Run streamable-http (dev):
+    TABLYCJA_COOKIES='{"JSESSIONID":"..."}' uv run python -m mcp_server
 
 Run stdio (for Claude Desktop / Cursor / VS Code):
-    TABLYCJA_COOKIES='{...}' uv run python -m mcp_server --stdio
+    TABLYCJA_COOKIES='{...}' uv run python -m mcp_server --transport stdio
 """
 from __future__ import annotations
 

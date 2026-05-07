@@ -5,10 +5,12 @@ the UI exposes as "Мої рецепти" (My Recipes). They are user-private
 compositions of foodstuffs with their own GUID, totals, and portions.
 
 Endpoints wrapped:
-- GET /user/settings/meal/list                       paginated list
-- GET /recipe/detail/{guid}                          full detail (incl. content[])
-- GET /user/meal/add/form/{guid}                     pre-filled add-to-diary form
-- POST /user/recipe/add                              log meal to diary
+- GET  /user/settings/meal/list                       paginated list
+- GET  /recipe/detail/{guid}                          full detail (incl. content[])
+- GET  /user/meal/add/form/{guid}                     pre-filled add-to-diary form
+- POST /user/recipe/add                               log meal to diary
+- GET  /user/diary/meal/edit/form/{entry_guid}        edit form for already-logged entry
+- POST /user/meal/edit                                save edits to an already-logged entry
 """
 from __future__ import annotations
 
@@ -52,13 +54,6 @@ class MealsApi:
     async def add_to_diary(self, payload: dict[str, Any]) -> None:
         """POST a fully-prepared recipe-add payload."""
         await self._s.post_json("/user/recipe/add", json_body=payload)
-
-    async def get_edit_form(self, recipe_guid: str) -> Any:
-        """Fetch the editable recipe definition (items + units + tags + portions).
-        Pass `0` as guid for a blank create form."""
-        return await self._s.get_json(
-            f"/user/settings/meal/edit/form/{recipe_guid}/"
-        )
 
     # ---- diary-entry edit (an already-logged item in the diary) ---------
 
@@ -140,21 +135,6 @@ class MealsApi:
             "scaled": scaled,
             "meal_id": form.get("diaryTimeGuid"),
         }
-
-    async def save_definition(
-        self,
-        *,
-        recipe_guid: str,
-        payload: dict[str, Any],
-    ) -> Any:
-        """Persist a recipe definition.
-        - `recipe_guid="0"` creates a new recipe; response `data` = new GUID.
-        - existing GUID updates that recipe in place.
-        """
-        return await self._s.post_json(
-            f"/user/settings/meal/detail/edit/{recipe_guid}",
-            json_body=payload,
-        )
 
     async def quick_add_to_diary(
         self,

@@ -1,11 +1,10 @@
-"""Crypto primitives: Fernet for cookie storage, JWT for tokens, PKCE verify."""
+"""Crypto primitives: Fernet for cookie storage, JWT (HS256) for tokens, PKCE verify."""
 from __future__ import annotations
 
 import base64
 import hashlib
 import hmac
 import json
-import os
 import secrets
 import time
 from typing import Any
@@ -14,10 +13,6 @@ from cryptography.fernet import Fernet, InvalidToken
 
 
 def random_id(n_bytes: int = 16) -> str:
-    return secrets.token_urlsafe(n_bytes)
-
-
-def random_secret(n_bytes: int = 32) -> str:
     return secrets.token_urlsafe(n_bytes)
 
 
@@ -87,47 +82,11 @@ def verify_pkce(verifier: str, challenge: str, method: str) -> bool:
     return False
 
 
-# ---------- Misc ---------------------------------------------------------
-
-def hash_token(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
-
-
-def constant_time_eq(a: str, b: str) -> bool:
-    return hmac.compare_digest(a, b)
-
-
-def now_s() -> int:
-    return int(time.time())
-
-
 __all__ = [
     "random_id",
-    "random_secret",
     "encrypt_json",
     "decrypt_json",
     "jwt_encode",
     "jwt_decode",
     "verify_pkce",
-    "hash_token",
-    "constant_time_eq",
-    "now_s",
 ]
-
-
-# Generate a dev fernet key on import if user hasn't set one (helper).
-def ensure_fernet_key(key: str) -> str:
-    """If key is empty or invalid, return a fresh one. Otherwise echo back."""
-    try:
-        Fernet(key.encode())
-        return key
-    except Exception:
-        return Fernet.generate_key().decode()
-
-
-def _gen_dev_fernet_env() -> str:  # pragma: no cover
-    return Fernet.generate_key().decode()
-
-
-# Avoid F401 on os/secrets if linter complains (used by callers via this module).
-_ = (os, secrets)

@@ -1,4 +1,4 @@
-"""Catalog search: foodstuff, activity, recipe, drink autocomplete + filter."""
+"""Catalog search: foodstuff + activity + meal autocomplete, paginated filter, food detail."""
 from __future__ import annotations
 
 from typing import Any
@@ -23,12 +23,6 @@ class CatalogApi:
 
     async def autocomplete_activity(self, query: str) -> list[SearchHit]:
         data = await self._s.get_json("/autocomplete/activity", params={"query": query})
-        if not isinstance(data, list):
-            return []
-        return [SearchHit.model_validate(d) for d in data]
-
-    async def autocomplete_drink(self, query: str) -> list[SearchHit]:
-        data = await self._s.get_json("/autocomplete/drink", params={"query": query})
         if not isinstance(data, list):
             return []
         return [SearchHit.model_validate(d) for d in data]
@@ -65,38 +59,3 @@ class CatalogApi:
             f"/foodstuff/detail/form/{foodstuff_guid}",
             params={"default": "true"},
         )
-
-    async def recipe_detail(self, recipe_guid: str) -> dict[str, Any]:
-        return await self._s.get_json(f"/recipe/detail/{recipe_guid}")
-
-    async def autocomplete_foodstuff(self, query: str) -> list[SearchHit]:
-        """Foodstuff-only autocomplete (no activities or meals)."""
-        data = await self._s.get_json("/autocomplete/foodstuff", params={"query": query})
-        if not isinstance(data, list):
-            return []
-        return [SearchHit.model_validate(d) for d in data]
-
-    async def food_tags(self, scope: str = "all") -> Any:
-        """Food filter tags. scope: 'all' or 'top'."""
-        if scope not in ("all", "top"):
-            raise ValueError(f"scope must be 'all' or 'top', got {scope}")
-        return await self._s.get_json(f"/foodstuff/tag/filters/{scope}")
-
-    async def public_recipes(
-        self,
-        *,
-        query: str = "",
-        page: int = 0,
-        limit: int = 20,
-    ) -> Any:
-        """Filter the public recipe catalogue."""
-        return await self._s.get_json(
-            "/recipe/public/filter",
-            params={"page": page, "limit": limit, "query": query},
-        )
-
-    async def recipe_tags(self) -> Any:
-        return await self._s.get_json("/recipe/tag/filters")
-
-    async def recipe_images(self, recipe_guid: str) -> Any:
-        return await self._s.get_json(f"/recipe/{recipe_guid}/image/list")

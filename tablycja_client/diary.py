@@ -11,12 +11,6 @@ class DiaryApi:
     def __init__(self, session: TablycjaSession) -> None:
         self._s = session
 
-    async def filled_out(self, day: date_cls | str):
-        """Calendar markers — which days in the same month have entries.
-        Path uses ISO YYYY-MM-DD (different from the other diary endpoints)."""
-        s = day if isinstance(day, str) else day.isoformat()
-        return await self._s.get_json(f"/user/diary/filled-out/{s}/")
-
     async def get_day(self, day: date_cls | str) -> DiaryDay:
         data = await self._s.get_json(f"/user/diary/{fmt_date(day)}/get")
         return DiaryDay.model_validate(data)

@@ -75,24 +75,9 @@ async def get_client() -> TablycjaClient:
     return TablycjaClient(cookies=cookies, login_creds=creds)
 
 
-def set_client(client: TablycjaClient | None) -> None:
-    """Test hook — overrides dev singleton."""
-    global _dev_client
-    _dev_client = client
-
-
-async def shutdown() -> None:
-    global _dev_client
-    if _dev_client is not None:
-        await _dev_client.aclose()
-        _dev_client = None
-
-
 __all__ = [
     "get_client",
-    "set_client",
     "set_current_sub",
     "set_current_cookies",
     "set_current_creds",
-    "shutdown",
 ]
