@@ -1,6 +1,6 @@
 ---
 name: tablycja
-description: Calorie / nutrition tracking on tablycjakalorijnosti.com.ua via the `tablycja` MCP. Trigger when the user asks to log/track/edit food, drinks, weight, activity, calories, macros, recipes, "сьогоднішній раціон", "что я съел", or similar nutrition-tracking phrases — OR when they mention specific foods + amounts + meal times together. Skip for general nutrition questions that don't touch the user's diary.
+description: Calorie / nutrition tracking on tablycjakalorijnosti.com.ua via the `tablycja` MCP. Trigger when the user asks to log/track/edit food, drinks, weight, activity, calories, macros, recipes, "сьогоднішній раціон", or similar nutrition-tracking phrases — OR when they mention specific foods + amounts + meal times together. Skip for general nutrition questions that don't touch the user's diary.
 ---
 
 # Tablycja MCP — efficient usage
