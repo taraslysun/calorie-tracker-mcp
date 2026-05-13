@@ -28,6 +28,7 @@ from .tools import catalog as catalog_tools
 from .tools import diary as diary_tools
 from .tools import profile as profile_tools
 from .tools import recipes as recipes_tools
+from .tools import semantic as semantic_tools
 from .tools import weight as weight_tools
 
 
@@ -36,8 +37,14 @@ def build_server() -> FastMCP:
         name="tablycja",
         instructions=(
             "Bridge to tablycjakalorijnosti.com.ua. "
-            "Use search_food / search_activity to resolve names → GUIDs, "
-            "then log_food / log_activity / log_weight to write entries. "
+            "Default food lookup: semantic_search_food — queries a local "
+            "Qdrant mirror of the upstream catalog (~205k rows, intfloat/"
+            "multilingual-e5-small 384d cosine embeddings). Supports cross-lingual + fuzzy intent "
+            "queries (e.g. 'щось солодке з горіхами', 'cottage cheese'). "
+            "Falls back to search_food / search_food_with_macros only for "
+            "exact-substring regex matches against upstream. "
+            "Use search_activity to resolve activity names → GUIDs. "
+            "Then log_food / log_activity / log_weight to write entries. "
             "get_day and get_summary read the diary. Dates: ISO YYYY-MM-DD."
         ),
     )
@@ -64,7 +71,9 @@ def build_server() -> FastMCP:
 
     @mcp.tool()
     async def search_food(query: str, limit: int = 10) -> list[dict[str, Any]]:
-        """Autocomplete foods/activities/meals by name. Returns id, title, energy."""
+        """[FALLBACK] Upstream regex autocomplete for foods/activities/meals.
+        Prefer `semantic_search_food` for any natural-language or fuzzy query.
+        Use this only when exact-substring upstream match is required."""
         return await catalog_tools.search_food(await get_client(), query=query, limit=limit)
 
     @mcp.tool()
@@ -84,13 +93,36 @@ def build_server() -> FastMCP:
         min_energy: int = 0,
         max_energy: int = 3800,
     ) -> dict[str, Any]:
-        """Search foodstuff DB with per-100g macros (energy, protein,
-        carbohydrate, fat, fiber, sugar, salt, calcium, sodium, ...).
-        Use this instead of `search_food` when you need macros up front,
-        or when you want to filter by calorie range. `id` from items can
-        be passed to `log_food` directly."""
+        """[FALLBACK] Upstream regex search with per-100g macros (energy,
+        protein, carbohydrate, fat, fiber, sugar, salt, ...). Prefer
+        `semantic_search_food` (semantic, no upstream hop, same `{count,
+        items}` envelope). Use this only when you need strict substring
+        match or upstream-freshness guarantee. `id` from items pipes
+        straight to `log_food`."""
         return await catalog_tools.search_food_with_macros(
             await get_client(),
+            query=query,
+            limit=limit,
+            min_energy=min_energy,
+            max_energy=max_energy,
+        )
+
+    @mcp.tool()
+    async def semantic_search_food(
+        query: str,
+        limit: int = 10,
+        min_energy: float | None = None,
+        max_energy: float | None = None,
+    ) -> dict[str, Any]:
+        """[DEFAULT] Semantic foodstuff search over local Qdrant mirror
+        (~205k rows, intfloat/multilingual-e5-small 384d cosine). Matches by meaning, not
+        substring — handles natural-language Ukrainian + English queries
+        ("щось солодке з горіхами", "cottage cheese", "high-protein
+        breakfast"). Sub-50ms warm, no upstream hop. Output is the same
+        `{count, items}` envelope as `search_food_with_macros`; item `id`
+        pipes straight to `log_food`. Optional `min_energy`/`max_energy`
+        filter by kcal/100g."""
+        return await semantic_tools.semantic_search_food(
             query=query,
             limit=limit,
             min_energy=min_energy,

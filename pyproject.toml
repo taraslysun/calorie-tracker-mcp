@@ -12,12 +12,24 @@ dependencies = [
     "authlib>=1.3",
     "cryptography>=43",
     "python-dotenv>=1.0",
+    "qdrant-client>=1.12",
+]
+
+[project.optional-dependencies]
+embed = [
+    "sentence-transformers>=3.0",
+    "torch>=2.2",
 ]
 
 [dependency-groups]
 recon = [
     "playwright>=1.47",
     "mitmproxy>=11",
+]
+ingest = [
+    "sentence-transformers>=3.0",
+    "torch>=2.2",
+    "tqdm>=4.66",
 ]
 dev = [
     "pytest>=8",

@@ -142,3 +142,20 @@ User-private compositions of foodstuffs. Different namespace from public
 
 ## Recon log
 - 2026-05-04 — initial Google login + add-food + add-activity + log-weight via `recon/web_capture.py`. File: `web-20260504-105333.jsonl`.
+- 2026-05-13 — discovered `/foodstuff/filter-list` returns at most ~10k unique rows regardless of `count` (which still reports the true ~206k total). `page > 50` returns empty, `limit > 10000` returns empty. Workaround: enumerate via many `query=<substring>` searches and dedupe by GUID (`scripts/bucket_ingest.py`).
+
+## Semantic mirror (out-of-band of upstream)
+
+`semantic_search_food` does NOT hit upstream. It queries a Qdrant Cloud
+collection populated by `scripts/bucket_ingest.py`:
+
+- Collection: `foodstuff_uk`
+- Vector: 384d cosine (intfloat/multilingual-e5-small, L2-normalized, `query:`/`passage:` prefixes)
+- Point ID: upstream foodstuff GUID (32-hex) → UUID format
+- Payload: full filter-list row (`id`, `title`, `energy`, `protein`,
+  `carbohydrate`, `fat`, ...) plus computed `energy_num` (float) for
+  range filtering
+- Coverage on last full run: 205,414 / 206,049 (99.7%)
+
+Refresh strategy: re-run the bucket ingest periodically. Existing GUIDs
+are skipped via Qdrant `existing_ids` probe before embedding.

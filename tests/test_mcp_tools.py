@@ -176,4 +176,5 @@ async def test_build_server_registers_all_tools():
         "get_diary_entry",
         "edit_diary_entry",
         "search_food_with_macros",
+        "semantic_search_food",
     }

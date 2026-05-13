@@ -19,3 +19,6 @@ secrets/
 *.sqlite
 *.sqlite3
 .DS_Store
+scripts/.ingest_state.json
+.bucket_state.json
+.claude/scheduled_tasks.lock

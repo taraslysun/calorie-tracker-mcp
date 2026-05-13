@@ -18,9 +18,10 @@ You are working against `tablycjakalorijnosti.com.ua` (a Ukrainian-language calo
 - `get_diary_entry(entry_id)` — editable form of a logged item.
 
 **Search:**
-- `search_food(query, limit)` — fast autocomplete; titles + kcal/100g only. **No macros.**
-- `search_food_with_macros(query, limit, min_energy?, max_energy?)` — full DB w/ per-100g protein/carb/fat/fiber. **Slower but useful when picking by macros.**
-- `search_activity(query, limit)` — activities autocomplete.
+- `semantic_search_food(query, limit, min_energy?, max_energy?)` — **DEFAULT.** Semantic search over local Qdrant mirror (~205k rows, intfloat/multilingual-e5-small 384d cosine). Matches by meaning, not substring. Cross-lingual (UA + EN + others). Sub-50ms warm, no upstream hop. Returns `{count, items}` w/ full per-100g macros. **Prefer this for almost every food lookup.**
+- `search_food(query, limit)` — [FALLBACK] upstream regex autocomplete; titles + kcal/100g only, no macros. Use only when user demands exact substring match against live upstream.
+- `search_food_with_macros(query, limit, min_energy?, max_energy?)` — [FALLBACK] upstream regex DB search w/ macros. Use only when semantic returns clearly wrong picks and you need raw substring against live upstream.
+- `search_activity(query, limit)` — activities autocomplete (no semantic mirror yet).
 
 **Write:**
 - `log_food(food_id, grams, meal, day)` — add a foodstuff entry.
@@ -31,9 +32,19 @@ You are working against `tablycjakalorijnosti.com.ua` (a Ukrainian-language calo
 
 ## Operational rules
 
-### 1. Always Ukrainian for searches
-The food DB is localized to UA. **Translate the user's term to Ukrainian first**, then search. Do not search English or other languages unless the user explicitly typed it. Examples:
-- "apple" → search "яблуко"
+### 1. Query language
+Upstream titles are Ukrainian, but the default `semantic_search_food` uses a
+multilingual embedder (e5-small, xlm-roberta backbone), so English / natural-language queries work
+fine. Examples that work directly:
+- "cottage cheese" → top hit "Cottage cheese Philadelphia"
+- "щось солодке з горіхами" → "Суміш горіхів і фруктів"
+- "high-protein breakfast" → eggs, cottage cheese, etc.
+
+Still, when in doubt, prefer the UA form — semantic top-k tends to rank
+language-native titles slightly higher. For the **fallback** regex tools
+(`search_food`, `search_food_with_macros`), always translate to UA first
+since they do plain substring match.
+- "apple" → "яблуко"
 - "fried chicken breast" → "куряча грудка смажена"
 - "salmon" → "лосось"
 
@@ -67,12 +78,14 @@ For macro-aware queries ("low-carb chicken", "high-protein snack"), prefer `sear
 
 ### 5. Logging workflow (default)
 ```
-search_food_with_macros("<UA query>", limit=5)
+semantic_search_food("<query, UA or EN>", limit=5)
   → pick id by rules above
 log_food(food_id=id, grams=N, meal=<slot>, day=<ISO>)
 get_summary(day=<ISO>)   # confirm new totals to the user
 ```
 Show the picked food's title + kcal so the user can spot a wrong pick.
+Fall back to `search_food_with_macros` only if semantic results all look
+unrelated (rare — usually means the food just isn't in upstream DB).
 
 ### 6. Editing logged entries
 User says "remove X from the Y I logged" / "actually I had only half":
@@ -108,8 +121,12 @@ Quote upstream Ukrainian labels verbatim where the user used Ukrainian; otherwis
 - If `get_active_user` itself fails → don't try other tools; tell user to re-bind.
 
 ### 10. Avoid waste
-- Don't call `search_food_with_macros` when the user already gave you a `food_id`.
-- Don't call `get_food_detail` after `search_food_with_macros` unless the user asks for a deeper nutrient breakdown — the search already includes core macros.
+- Don't call any search tool when the user already gave you a `food_id`.
+- Don't call `get_food_detail` after `semantic_search_food` /
+  `search_food_with_macros` unless the user asks for a deeper nutrient
+  breakdown — both already include core macros.
+- Don't double-search: pick from semantic results first; only fall back to
+  `search_food_with_macros` if semantic top-k is unambiguously wrong.
 - Batch reads when possible: a day report = `get_day` + `get_summary` (parallel).
 - Don't refetch profile each turn; cache it in conversation context.
 
@@ -131,10 +148,18 @@ date = today_iso()
 
 **"Log 150g chicken breast for lunch"**
 ```
-search_food_with_macros("куряча грудка", limit=5)
+semantic_search_food("куряча грудка", limit=5)
 pick best (e.g. "Куряча грудка" plain, ~165kcal/100g)
 log_food(id, grams=150, meal="lunch", day=today_iso())
 get_summary(today_iso())  # confirm
+```
+
+**"I had something sweet with nuts — log a small bowl"**
+```
+semantic_search_food("щось солодке з горіхами", limit=10)
+# expect halva, nut+fruit mixes, dates, peanut butter at top
+disambiguate w/ user → pick id
+log_food(id, grams=N, meal=<slot>, day=today_iso())
 ```
 
 **"Add my Avocado-toast recipe to breakfast, no banana"**
